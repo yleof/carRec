@@ -1,0 +1,513 @@
+<!-- app/templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pre-owned Car Recommendations</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <style>
+        .car-card {
+            margin-bottom: 1rem;
+            transition: transform 0.2s;
+        }
+        .car-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row mb-4">
+            <div class="col">
+                <h1 class="display-4">Pre-owned Car Finder</h1>
+                <p class="lead">Find and analyze the best pre-owned car deals using AI.</p>
+            </div>
+        </div>
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Search Criteria</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="searchForm">
+                            <div class="mb-3">
+                                <label for="make" class="form-label">Make</label>
+                                <input type="text" class="form-control" id="make" placeholder="Honda, Toyota, etc.">
+                            </div>
+                            <div class="mb-3">
+                                <label for="model" class="form-label">Model</label>
+                                <input type="text" class="form-control" id="model" placeholder="Civic, Corolla, etc.">
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <label for="minYear" class="form-label">Min Year</label>
+                                    <input type="number" class="form-control" id="minYear" min="1990" max="2025" placeholder="2015">
+                                </div>
+                                <div class="col">
+                                    <label for="maxYear" class="form-label">Max Year</label>
+                                    <input type="number" class="form-control" id="maxYear" min="1990" max="2025" placeholder="2023">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <label for="minPrice" class="form-label">Min Price ($)</label>
+                                    <input type="number" class="form-control" id="minPrice" min="0" placeholder="5000">
+                                </div>
+                                <div class="col">
+                                    <label for="maxPrice" class="form-label">Max Price ($)</label>
+                                    <input type="number" class="form-control" id="maxPrice" min="0" placeholder="25000">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <label for="minMileage" class="form-label">Min Mileage</label>
+                                    <input type="number" class="form-control" id="minMileage" min="0" placeholder="0">
+                                </div>
+                                <div class="col">
+                                    <label for="maxMileage" class="form-label">Max Mileage</label>
+                                    <input type="number" class="form-control" id="maxMileage" min="0" placeholder="100000">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="bodyType" class="form-label">Body Type</label>
+                                <select class="form-select" id="bodyType">
+                                    <option value="">Any</option>
+                                    <option value="sedan">Sedan</option>
+                                    <option value="suv">SUV</option>
+                                    <option value="truck">Truck</option>
+                                    <option value="coupe">Coupe</option>
+                                    <option value="wagon">Wagon</option>
+                                    <option value="hatchback">Hatchback</option>
+                                    <option value="convertible">Convertible</option>
+                                    <option value="minivan">Minivan</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="transmission" class="form-label">Transmission</label>
+                                <select class="form-select" id="transmission">
+                                    <option value="">Any</option>
+                                    <option value="automatic">Automatic</option>
+                                    <option value="manual">Manual</option>
+                                    <option value="cvt">CVT</option>
+                                </select>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">Search Cars</button>
+                                <button type="button" id="analyzeButton" class="btn btn-success">Get AI Recommendations</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Results</h5>
+                        <span id="resultCount" class="badge bg-light text-dark">0 cars found</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="loading" class="loader d-none"></div>
+                        <div id="results" class="row">
+                            <div class="col-12 text-center text-muted">
+                                <p>Use the search form to find cars</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="recommendationsContainer" class="card mt-4 d-none">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">AI Recommendations</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="recommendationsLoading" class="loader d-none"></div>
+                        <div id="recommendations"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Car Detail Modal -->
+        <div class="modal fade" id="carDetailModal" tabindex="-1" aria-labelledby="carDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="carDetailModalLabel">Car Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="modalLoading" class="loader d-none"></div>
+                        <div id="carDetailContent"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchForm = document.getElementById('searchForm');
+            const analyzeButton = document.getElementById('analyzeButton');
+            const resultsContainer = document.getElementById('results');
+            const resultCount = document.getElementById('resultCount');
+            const loadingIndicator = document.getElementById('loading');
+            const recommendationsContainer = document.getElementById('recommendationsContainer');
+            const recommendations = document.getElementById('recommendations');
+            const recommendationsLoading = document.getElementById('recommendationsLoading');
+            const carDetailModal = new bootstrap.Modal(document.getElementById('carDetailModal'));
+            const carDetailContent = document.getElementById('carDetailContent');
+            const modalLoading = document.getElementById('modalLoading');
+
+            // Search form submission
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Show loading indicator
+                loadingIndicator.classList.remove('d-none');
+                resultsContainer.innerHTML = '';
+                
+                // Collect search criteria
+                const criteria = {
+                    make: document.getElementById('make').value,
+                    model: document.getElementById('model').value,
+                    year: {
+                        min: parseInt(document.getElementById('minYear').value) || null,
+                        max: parseInt(document.getElementById('maxYear').value) || null
+                    },
+                    price: {
+                        min: parseInt(document.getElementById('minPrice').value) || null,
+                        max: parseInt(document.getElementById('maxPrice').value) || null
+                    },
+                    mileage: {
+                        min: parseInt(document.getElementById('minMileage').value) || null,
+                        max: parseInt(document.getElementById('maxMileage').value) || null
+                    },
+                    body_type: document.getElementById('bodyType').value,
+                    transmission: document.getElementById('transmission').value
+                };
+                
+                // Filter out empty criteria
+                Object.keys(criteria).forEach(key => {
+                    if (!criteria[key] || (typeof criteria[key] === 'object' && 
+                                          !Object.values(criteria[key]).some(v => v !== null))) {
+                        delete criteria[key];
+                    }
+                });
+                
+                // Make API request
+                fetch('/api/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(criteria)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadingIndicator.classList.add('d-none');
+                    
+                    if (!data.success) {
+                        resultsContainer.innerHTML = `<div class="col-12 alert alert-danger">${data.error}</div>`;
+                        resultCount.textContent = '0 cars found';
+                        return;
+                    }
+                    
+                    const cars = data.cars;
+                    resultCount.textContent = `${cars.length} cars found`;
+                    
+                    if (cars.length === 0) {
+                        resultsContainer.innerHTML = `
+                            <div class="col-12 text-center text-muted">
+                                <p>No cars found matching your criteria. Try adjusting your search.</p>
+                            </div>`;
+                        return;
+                    }
+                    
+                    // Display results
+                    displayCarResults(cars);
+                })
+                .catch(error => {
+                    loadingIndicator.classList.add('d-none');
+                    resultsContainer.innerHTML = `<div class="col-12 alert alert-danger">Error: ${error.message}</div>`;
+                    resultCount.textContent = '0 cars found';
+                });
+            });
+            
+            // Get AI recommendations
+            analyzeButton.addEventListener('click', function() {
+                recommendationsContainer.classList.remove('d-none');
+                recommendationsLoading.classList.remove('d-none');
+                recommendations.innerHTML = '';
+                
+                // Collect criteria (same as search)
+                const criteria = {
+                    make: document.getElementById('make').value,
+                    model: document.getElementById('model').value,
+                    year: {
+                        min: parseInt(document.getElementById('minYear').value) || null,
+                        max: parseInt(document.getElementById('maxYear').value) || null
+                    },
+                    price: {
+                        min: parseInt(document.getElementById('minPrice').value) || null,
+                        max: parseInt(document.getElementById('maxPrice').value) || null
+                    },
+                    mileage: {
+                        min: parseInt(document.getElementById('minMileage').value) || null,
+                        max: parseInt(document.getElementById('maxMileage').value) || null
+                    },
+                    body_type: document.getElementById('bodyType').value,
+                    transmission: document.getElementById('transmission').value
+                };
+                
+                // Filter out empty criteria
+                Object.keys(criteria).forEach(key => {
+                    if (!criteria[key] || (typeof criteria[key] === 'object' && 
+                                          !Object.values(criteria[key]).some(v => v !== null))) {
+                        delete criteria[key];
+                    }
+                });
+                
+                // Make API request for analysis
+                fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(criteria)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    recommendationsLoading.classList.add('d-none');
+                    
+                    if (!data.success) {
+                        recommendations.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                        return;
+                    }
+                    
+                    // Display AI recommendations
+                    displayRecommendations(data.recommendations);
+                })
+                .catch(error => {
+                    recommendationsLoading.classList.add('d-none');
+                    recommendations.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+                });
+            });
+            
+            // Function to display car results
+            function displayCarResults(cars) {
+                resultsContainer.innerHTML = '';
+                
+                cars.forEach(car => {
+                    const carCard = document.createElement('div');
+                    carCard.className = 'col-md-6 col-lg-4';
+                    
+                    const priceFormatted = new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                        maximumFractionDigits: 0
+                    }).format(car.price || 0);
+                    
+                    const mileageFormatted = new Intl.NumberFormat('en-US').format(car.mileage || 0);
+                    
+                    carCard.innerHTML = `
+                        <div class="card car-card">
+                            <div class="card-body">
+                                <h5 class="card-title">${car.year || ''} ${car.make || ''} ${car.model || ''}</h5>
+                                <div class="mb-2">
+                                    <span class="badge bg-primary">${priceFormatted}</span>
+                                    <span class="badge bg-secondary">${mileageFormatted} miles</span>
+                                </div>
+                                <p class="card-text">
+                                    ${car.body_type ? `<span class="text-muted">Body: </span>${car.body_type}<br>` : ''}
+                                    ${car.transmission ? `<span class="text-muted">Transmission: </span>${car.transmission}<br>` : ''}
+                                    ${car.exterior_color ? `<span class="text-muted">Color: </span>${car.exterior_color}` : ''}
+                                </p>
+                                <button type="button" class="btn btn-sm btn-outline-primary view-details" data-car-id="${car.id}">
+                                    View Details
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    resultsContainer.appendChild(carCard);
+                });
+                
+                // Add event listeners for detail buttons
+                document.querySelectorAll('.view-details').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const carId = this.getAttribute('data-car-id');
+                        openCarDetails(carId);
+                    });
+                });
+            }
+            
+            // Function to display AI recommendations
+            function displayRecommendations(recommendationsData) {
+                if (typeof recommendationsData === 'string') {
+                    recommendations.innerHTML = `<div class="alert alert-info">${recommendationsData}</div>`;
+                    return;
+                }
+                
+                let html = '<div class="mb-3">';
+                
+                if (recommendationsData.summary) {
+                    html += `<h5>Summary</h5><p>${recommendationsData.summary}</p>`;
+                }
+                
+                if (recommendationsData.top_picks && recommendationsData.top_picks.length) {
+                    html += '<h5>Top Picks</h5><div class="list-group mb-3">';
+                    
+                    recommendationsData.top_picks.forEach(pick => {
+                        html += `
+                            <div class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">${pick.year || ''} ${pick.make || ''} ${pick.model || ''}</h6>
+                                    <small>${new Intl.NumberFormat('en-US', {
+                                        style: 'currency', 
+                                        currency: 'USD',
+                                        maximumFractionDigits: 0
+                                    }).format(pick.price || 0)}</small>
+                                </div>
+                                <p class="mb-1">${pick.reason || ''}</p>
+                                ${pick.id ? `<button type="button" class="btn btn-sm btn-outline-primary view-details" data-car-id="${pick.id}">View Details</button>` : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                }
+                
+                if (recommendationsData.considerations) {
+                    html += `<h5>Considerations</h5><p>${recommendationsData.considerations}</p>`;
+                }
+                
+                html += '</div>';
+                recommendations.innerHTML = html;
+                
+                // Add event listeners for detail buttons
+                recommendations.querySelectorAll('.view-details').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const carId = this.getAttribute('data-car-id');
+                        openCarDetails(carId);
+                    });
+                });
+            }
+            
+            // Function to open car details modal
+            function openCarDetails(carId) {
+                document.getElementById('carDetailModalLabel').textContent = 'Loading Car Details...';
+                carDetailContent.innerHTML = '';
+                modalLoading.classList.remove('d-none');
+                carDetailModal.show();
+                
+                fetch(`/api/car/${carId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        modalLoading.classList.add('d-none');
+                        
+                        if (!data.success) {
+                            carDetailContent.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                            document.getElementById('carDetailModalLabel').textContent = 'Error';
+                            return;
+                        }
+                        
+                        const car = data.car;
+                        document.getElementById('carDetailModalLabel').textContent = 
+                            `${car.year || ''} ${car.make || ''} ${car.model || ''}`;
+                        
+                        // Format price and mileage
+                        const priceFormatted = new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD',
+                            maximumFractionDigits: 0
+                        }).format(car.price || 0);
+                        
+                        const mileageFormatted = new Intl.NumberFormat('en-US').format(car.mileage || 0);
+                        
+                        // Build details content
+                        let detailsHtml = `
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Basic Information</h6>
+                                    <table class="table table-striped">
+                                        <tbody>
+                                            <tr><th>Price</th><td>${priceFormatted}</td></tr>
+                                            <tr><th>Mileage</th><td>${mileageFormatted} miles</td></tr>
+                                            <tr><th>VIN</th><td>${car.vin || 'N/A'}</td></tr>
+                                            <tr><th>Body Type</th><td>${car.body_type || 'N/A'}</td></tr>
+                                            <tr><th>Transmission</th><td>${car.transmission || 'N/A'}</td></tr>
+                                            <tr><th>Exterior Color</th><td>${car.exterior_color || 'N/A'}</td></tr>
+                                            <tr><th>Interior Color</th><td>${car.interior_color || 'N/A'}</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                        `;
+                        
+                        // Add details section if available
+                        if (car.details && typeof car.details === 'object') {
+                            detailsHtml += `
+                                <div class="col-md-6">
+                                    <h6>Additional Details</h6>
+                                    <table class="table table-striped">
+                                        <tbody>
+                            `;
+                            
+                            Object.entries(car.details).forEach(([key, value]) => {
+                                const formattedKey = key.replace(/_/g, ' ')
+                                                      .split(' ')
+                                                      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                                                      .join(' ');
+                                detailsHtml += `<tr><th>${formattedKey}</th><td>${value}</td></tr>`;
+                            });
+                            
+                            detailsHtml += `
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `;
+                        }
+                        
+                        detailsHtml += '</div>';
+                        
+                        // Add description if available
+                        if (car.description) {
+                            detailsHtml += `
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <h6>Description</h6>
+                                        <p>${car.description}</p>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        carDetailContent.innerHTML = detailsHtml;
+                    })
+                    .catch(error => {
+                        modalLoading.classList.add('d-none');
+                        carDetailContent.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+                        document.getElementById('carDetailModalLabel').textContent = 'Error';
+                    });
+            }
+        });
+    </script>
+</body>
+</html>
